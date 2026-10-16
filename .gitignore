@@ -1,1 +1,6 @@
 
+# Remove virtual environment 
+venv
+
+# Remove data
+datasets
