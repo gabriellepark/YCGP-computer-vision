@@ -1,0 +1,19 @@
+# Dataset images and archives (keep docs + unzip script)
+datasets/*
+!datasets/unzip_files.py
+!datasets/Agreements.pdf
+!datasets/Copyright Note.txt
+!datasets/Note_CASIA-IrisV1.pdf
+*.bmp
+*.zip
+*.rar
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# OS / IDE
+.DS_Store
+.idea/workspace.xml
