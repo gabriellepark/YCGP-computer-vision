@@ -1,0 +1,67 @@
+[
+  {
+    "image": "iris_01.png",
+    "pupil_info": [
+      160,
+      140,
+      32
+    ],
+    "iris_info": [
+      158,
+      141,
+      95
+    ]
+  },
+  {
+    "image": "iris_02.png",
+    "pupil_info": [
+      152,
+      135,
+      45
+    ],
+    "iris_info": [
+      150,
+      138,
+      100
+    ]
+  },
+  {
+    "image": "iris_03.png",
+    "pupil_info": [
+      170,
+      148,
+      25
+    ],
+    "iris_info": [
+      166,
+      145,
+      88
+    ]
+  },
+  {
+    "image": "iris_04.png",
+    "pupil_info": [
+      145,
+      132,
+      38
+    ],
+    "iris_info": [
+      148,
+      136,
+      105
+    ]
+  },
+  {
+    "image": "iris_05.png",
+    "pupil_info": [
+      165,
+      142,
+      30
+    ],
+    "iris_info": [
+      160,
+      140,
+      80
+    ]
+  }
+]
