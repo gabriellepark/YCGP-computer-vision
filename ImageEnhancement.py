@@ -96,7 +96,7 @@ def enhanceImage(img, block_size=(16, 16)):
     background_illumination = ski.measure.block_reduce(img_padded, block_size=block_size, func=np.mean)
 
     # Recover normalized size with bicubic interpolation
-    # Using [::-1] to reverse original sie so it matches (width, height) convention of the .resize() function
+    # Using [::-1] to reverse original size so it matches (width, height) convention of the .resize() function
     background_illumination_normalized = cv2.resize(background_illumination, og_img_size[::-1], interpolation=cv2.INTER_CUBIC)
 
     # Remove background illumination from normalized image
