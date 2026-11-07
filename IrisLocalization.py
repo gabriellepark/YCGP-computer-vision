@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 # implementation based on https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=1251145&utm_source=scopus&getft_integrator=scopus
 
 
-def irisLocalization(file_name, show=True):
+# def irisLocalization(file_name, show=True):
+def irisLocalization(img, show=True):
 
     # use of hough circles based on https://docs.opencv.org/4.13.0/da/d53/tutorial_py_houghcircles.html
-    img = cv2.imread(file_name, cv2.IMREAD_GRAYSCALE)
-    assert img is not None, "file could not be read, check with os.path.exists()"
+    # img = cv2.imread(file_name, cv2.IMREAD_GRAYSCALE)
+    # assert img is not None, "file could not be read, check with os.path.exists()"
 
     # Step 1 - approximate pupil center
     # project image in vertical and horizontal direction to approximately estimate the center
@@ -88,12 +89,12 @@ def irisLocalization(file_name, show=True):
 # if __name__ == '__main__':
 #     irisLocalization('datasets/CASIA Iris Image Database (version 1.0)/001/1/001_1_1.bmp')
 
-if __name__ == '__main__':
-    base = 'datasets/CASIA Iris Image Database (version 1.0)'
+# if __name__ == '__main__':
+#     base = 'datasets/CASIA Iris Image Database (version 1.0)'
 
-    for subject in range(1, 11):
-        s = f'{subject:03d}'
-        for session in (1, 2):
-            name = f'{s}_{session}_1.bmp'  # first image in the folder
-            print(name)
-            img, pupil, iris = irisLocalization(f'{base}/{s}/{session}/{name}', show=True)
+#     for subject in range(1, 11):
+#         s = f'{subject:03d}'
+#         for session in (1, 2):
+#             name = f'{s}_{session}_1.bmp'  # first image in the folder
+#             print(name)
+#             img, pupil, iris = irisLocalization(f'{base}/{s}/{session}/{name}', show=True)
