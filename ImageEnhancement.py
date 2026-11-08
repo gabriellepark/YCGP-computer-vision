@@ -6,13 +6,15 @@ import cv2
 import numpy as np
 import skimage as ski
 
-#%%
+
+# %%
 
 def _plotHist(img, bins =256, range = [0, 256]):
-    plt.close()
+    plt.figure()
     plt.hist(img.flatten(),bins,range, color = 'b')
     plt.xlim([0,256])
     plt.show()
+
 
 def _padImage(img: np.ndarray, block_size=(16, 16)):
     # Get image current size
@@ -41,8 +43,7 @@ def _padImage(img: np.ndarray, block_size=(16, 16)):
     return img
 
 
-def _equalizeImg(img, block_shape=(32,32)):
-
+def _equalizeImg(img, block_shape=(32, 32), show=False):
     # Copy image to create view as blocks
     img_tmp = img.copy()
 
@@ -52,26 +53,26 @@ def _equalizeImg(img, block_shape=(32,32)):
     # Normalize image to fit the grayscale 0 to 255. Use CV_8U to ensure unint8 values for equalizer.
     img_tmp = cv2.normalize(img_tmp, dst= None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U, mask=None)
 
-    # Create a view 
+    # Create a view
     blocks = ski.util.view_as_blocks(img_tmp, block_shape)
 
     for i in range(blocks.shape[0]):
         for j in range(blocks.shape[1]):
-
             # Equalize block
             blocks[i, j] = cv2.equalizeHist(blocks[i, j])
 
     # View equalized histogram
-    _plotHist(img_tmp)
+    if show:
+        _plotHist(img_tmp)
 
     return img_tmp
 
 
-def enhanceImage(img, block_size=(16, 16)):
+def enhanceImage(img, block_size=(16, 16), show=False):
     """
     Function to enhance the quality of the normalized image.
-    The function uses OpenCV's .equalizeHist() function on the image and returns 
-    enhanhanced image. 
+    The function uses OpenCV's .equalizeHist() function on the image and returns
+    enhanhanced image.
     Assumes image is already in gray scale.
     """
 
@@ -80,9 +81,10 @@ def enhanceImage(img, block_size=(16, 16)):
     og_img_size = img.shape
 
     # Plot current image histogram
-    _plotHist(img, bins=256, range = [0, 256])
+    if show:
+        _plotHist(img, bins=256, range=[0, 256])
 
-    # The paper uses "mean of each 16x16 small block" to estimate background illumination 
+    # The paper uses "mean of each 16x16 small block" to estimate background illumination
     # (Ma et al., Personal Identification Based on Iris Texture Analysis, 3.2.3 Image Enhancement)
 
     # Create a 16 x 16 mean filter to do the same
@@ -96,14 +98,15 @@ def enhanceImage(img, block_size=(16, 16)):
     background_illumination = ski.measure.block_reduce(img_padded, block_size=block_size, func=np.mean)
 
     # Recover normalized size with bicubic interpolation
-    # Using [::-1] to reverse original sie so it matches (width, height) convention of the .resize() function
-    background_illumination_normalized = cv2.resize(background_illumination, og_img_size[::-1], interpolation=cv2.INTER_CUBIC)
+    # Using [::-1] to reverse original size so it matches (width, height) convention of the .resize() function
+    background_illumination_normalized = cv2.resize(background_illumination, og_img_size[::-1],
+                                                    interpolation=cv2.INTER_CUBIC)
 
     # Remove background illumination from normalized image
     enhanced_image = cv2.subtract(img, background_illumination_normalized)
 
     # Use histogram equalization to enhance image quality for dark settings
-    img_histEqualization = _equalizeImg(enhanced_image)
+    img_histEqualization = _equalizeImg(enhanced_image, show=show)
 
     return img_histEqualization
 # %%

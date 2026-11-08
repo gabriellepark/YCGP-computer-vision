@@ -18,6 +18,7 @@ def irisLocalization(img, show=True):
     # Step 1 - approximate pupil center
     # project image in vertical and horizontal direction to approximately estimate the center
     # coordinates of the pupil
+    blur = cv2.GaussianBlur(img, (31, 31), 0)
     vert_proj = img.sum(axis=0)
     horiz_proj = img.sum(axis=1)
     # get minima of two projection profiles
@@ -32,8 +33,9 @@ def irisLocalization(img, show=True):
 
     # Step 2 - refined center
     # get 120 x 120 region of interest centered at point
-    x0, y0 = max(Xp - 60, 0), max(Yp - 60, 0)
-    roi = img[y0:Yp + 60, x0:Xp + 60]
+    # length = 150
+    x0, y0 = max(Xp - 120//2, 0), max(Yp - 120//2, 0)
+    roi = img[y0:Yp + 120//2, x0:Xp + 120//2]
 
     # binarize by adaptively selecting a reasonable threshold using the gray-level histogram of this region
     # use Otsu thresholding to automatically calculate the optimal threshold by analyzing the image histogram
@@ -59,21 +61,25 @@ def irisLocalization(img, show=True):
     # Step 3: Canny + Hough
     # Calculate the exact parameters of these two circles using edge detection
     # (Canny operator in experiments) and Hough transform in a certain region determined by the center of the pupil.
-    x0, y0 = max(Xp - 120, 0), max(Yp - 120, 0)
+    x0, y0 = max(Xp - 150, 0), max(Yp - 150, 0)
     # https://docs.opencv.org/4.13.0/da/d53/tutorial_py_houghcircles.html
-    region = cv2.medianBlur(img[y0:Yp + 120, x0:Xp + 120], 5)
+    region = cv2.medianBlur(img[y0:Yp + 150, x0:Xp + 150], 5)
 
     # will come back to tune these params because it's not getting everything
     pupil = cv2.HoughCircles(region, cv2.HOUGH_GRADIENT, 1, 300, param1=50, param2=15,
                              minRadius=int(int(r_pupil) * 0.8), maxRadius=int(int(r_pupil) * 1.2))
-    iris = cv2.HoughCircles(region, cv2.HOUGH_GRADIENT, 1, 300, param1=30, param2=20,
-                            minRadius=int(r_pupil) + 20, maxRadius=120)
 
-    if pupil is None or iris is None:
+    irises = cv2.HoughCircles(region, cv2.HOUGH_GRADIENT, 1, 15, param1=30, param2=20,
+                              minRadius=max(int(r_pupil * 1.8), 80), maxRadius=150)
+    if pupil is None or irises is None:
         return img, None, None
 
     pupil = pupil[0, 0] + [x0, y0, 0]
-    iris = iris[0, 0] + [x0, y0, 0]
+
+    irises_recentered = irises[0] + [x0, y0, 0]
+    # picks the iris that is euclidean distance closest to the pupil
+    iris = irises_recentered[np.argmin(np.hypot(irises_recentered[:, 0] - pupil[0], irises_recentered[:, 1] - pupil[1]))]
+
 
     if show:
         cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)

@@ -29,7 +29,7 @@ def normalizeIris(img, M, N, pupil_info, iris_info):
 
         # Find the direction angle
         theta = 2 * np.pi * X/N
-        
+
         # Get coordinates of the pupil boundary in the direction theta
         xp = cxp + rp * np.cos(theta)
         yp = cyp - rp * np.sin(theta)
@@ -40,6 +40,10 @@ def normalizeIris(img, M, N, pupil_info, iris_info):
 
         x = xp + ((xi - xp))*(Y/M)
         y = yp + ((yi - yp))*(Y/M)
+
+
+        x = np.clip(x, 0, img.shape[1] - 1)
+        y = np.clip(y, 0, img.shape[0] - 1)
 
         normImg[Y, X] = img[int(round(y)), int(round(x))]
 
