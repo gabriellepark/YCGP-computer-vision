@@ -1,10 +1,10 @@
 #%%
-# from IrisLocalization import localizeIris # Gabby functions
+from IrisLocalization import irisLocalization # Gaby functions
 from IrisNormalization import normalizeIris # Yelene functions
 from ImageEnhancement import enhanceImage # Yelene functions
-# from FeatureExtraction import load_data, localizeIris # Gabby functions
-# from IrisMatching import getFLD, runNCC # Fisher Linear discriminant and Nearest Center classifier functions
-# from PerformanceEvaluation import getCRR, getROC # CRR and ROC functions
+from FeatureExtraction import extract_features # Gaby functions
+from IrisMatching import match_iris # Fisher Linear discriminant and Nearest Center classifier functions
+from PerformanceEvaluation import getCRR, getROC # CRR and ROC functions
 import matplotlib.pyplot as plt
 import pandas as pd
 import cv2

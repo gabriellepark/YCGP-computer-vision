@@ -8,7 +8,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 # WILL COME BACK TO ADJUST AND COMMENT
 
-def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3, 0, 3, 6, 9)):
+def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3, 0, 3, 6, 9), use_lda=True, n_components = None):
     # after feature extraction, iris image represented as a feature vector of length 1,536
     y_train = np.array(y_train)
     angle_train = np.tile(angles, len(y_train) // len(angles))
@@ -17,9 +17,13 @@ def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3
     # feature vector f = W^TV
     # W is projection matrix
     # V is original feature vector
-    lda = LinearDiscriminantAnalysis().fit(X_train, y_train)
-    f_train = lda.transform(X_train)
-    f_test = lda.transform(X_test)
+    if use_lda:
+        lda = LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto').fit(X_train, y_train)
+        f_train = lda.transform(X_train)
+        f_test = lda.transform(X_test)
+    else:
+        f_train = np.asarray(X_train)
+        f_test = np.asarray(X_test)
 
     # rotation invariance: iris unwrapped at initial angles -9, -6, -3, 0, 3, 6, 9,
     # giving 7 templates per class (one center per class per angle)
@@ -35,7 +39,24 @@ def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3
     centers = np.array(centers)
 
     # nearest center classifier for classification in low dim feature space
-    predictions = []
+    # predictions = []
+    # for f in f_test:
+    #     if metric == 'l1':
+    #         d = np.abs(centers - f).sum(axis=-1)
+    #     elif metric == 'l2':
+    #         d = ((centers - f)**2).sum(axis=-1)
+    #     else:
+    #         d = 1 - (centers @ f) / (np.linalg.norm(centers, axis=-1) * np.linalg.norm(f))
+    #
+    #     d = d.min(axis = 1)
+    #
+    #     argmin = np.argmin(d)
+    #
+    #     predictions.append(classes[argmin])
+    #
+    # return np.array(predictions)
+
+    predictions, dists = [], []
     for f in f_test:
         if metric == 'l1':
             d = np.abs(centers - f).sum(axis=-1)
@@ -44,13 +65,11 @@ def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3
         else:
             d = 1 - (centers @ f) / (np.linalg.norm(centers, axis=-1) * np.linalg.norm(f))
 
-        d = d.min(axis = 1)
+        d = d.min(axis=1)              # best of the 7 rotations, per class
+        dists.append(d)
+        predictions.append(classes[np.argmin(d)])
 
-        argmin = np.argmin(d)
-
-        predictions.append(classes[argmin])
-
-    return np.array(predictions)
+    return np.array(predictions), np.array(dists), classes
 
 
 # Ma’ method: an iris image is represented as a feature vector of
