@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 
 # def irisLocalization(file_name, show=True):
-def irisLocalization(img, show=True):
+def irisLocalization(img, show=False):
 
     # use of hough circles based on https://docs.opencv.org/4.13.0/da/d53/tutorial_py_houghcircles.html
     # img = cv2.imread(file_name, cv2.IMREAD_GRAYSCALE)
@@ -19,8 +19,8 @@ def irisLocalization(img, show=True):
     # project image in vertical and horizontal direction to approximately estimate the center
     # coordinates of the pupil
     blur = cv2.GaussianBlur(img, (31, 31), 0)
-    vert_proj = img.sum(axis=0)
-    horiz_proj = img.sum(axis=1)
+    vert_proj = blur.sum(axis=0)
+    horiz_proj = blur.sum(axis=1)
     # get minima of two projection profiles
     Xp = int(np.argmin(vert_proj))
     Yp = int(np.argmin(horiz_proj))
@@ -34,22 +34,23 @@ def irisLocalization(img, show=True):
     # Step 2 - refined center
     # get 120 x 120 region of interest centered at point
     # length = 150
-    x0, y0 = max(Xp - 120//2, 0), max(Yp - 120//2, 0)
-    roi = img[y0:Yp + 120//2, x0:Xp + 120//2]
+    for i in range(2):
+        x0, y0 = max(Xp - 120//2, 0), max(Yp - 120//2, 0)
+        roi = img[y0:Yp + 120//2, x0:Xp + 120//2]
 
-    # binarize by adaptively selecting a reasonable threshold using the gray-level histogram of this region
-    # use Otsu thresholding to automatically calculate the optimal threshold by analyzing the image histogram
-    # https://www.geeksforgeeks.org/python/otsu-thresholding-using-opencv/
-    _, otsu_thresh = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        # binarize by adaptively selecting a reasonable threshold using the gray-level histogram of this region
+        # use Otsu thresholding to automatically calculate the optimal threshold by analyzing the image histogram
+        # https://www.geeksforgeeks.org/python/otsu-thresholding-using-opencv/
+        _, otsu_thresh = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # centroid of the binary region as accurate estimate of the pupil coordinates
-    # use image moments to calculate centroid https://docs.opencv.org/4.9.0/dd/d49/tutorial_py_contour_features.html
-    m = cv2.moments(otsu_thresh, binaryImage=True)
-    Xp = int(x0 + m['m10'] / m['m00'])
-    Yp = int(y0 + m['m01'] / m['m00'])
+        # centroid of the binary region as accurate estimate of the pupil coordinates
+        # use image moments to calculate centroid https://docs.opencv.org/4.9.0/dd/d49/tutorial_py_contour_features.html
+        m = cv2.moments(otsu_thresh, binaryImage=True)
+        Xp = int(x0 + m['m10'] / m['m00'])
+        Yp = int(y0 + m['m01'] / m['m00'])
 
-    # rough pupil radius from the region's area
-    r_pupil = np.sqrt(m['m00'] / np.pi)
+        # rough pupil radius from the region's area
+        r_pupil = np.sqrt(m['m00'] / np.pi)
 
     if show:
         plt.imshow(img, cmap='gray')
@@ -79,6 +80,13 @@ def irisLocalization(img, show=True):
     irises_recentered = irises[0] + [x0, y0, 0]
     # picks the iris that is euclidean distance closest to the pupil
     iris = irises_recentered[np.argmin(np.hypot(irises_recentered[:, 0] - pupil[0], irises_recentered[:, 1] - pupil[1]))]
+
+    dist_hypot = np.hypot(irises_recentered[:, 0] - pupil[0], irises_recentered[:, 1] - pupil[1])
+    dist_closeness = irises_recentered[dist_hypot < 10]
+    if len(dist_closeness) > 0:
+        iris = dist_closeness[np.argmax(dist_closeness[:, 2])]
+    else:
+        iris = irises_recentered[np.argmin(dist_hypot)]
 
 
     if show:
