@@ -3,7 +3,7 @@ from IrisLocalization import irisLocalization # Gaby functions
 from IrisNormalization import normalizeIris # Yelene functions
 from ImageEnhancement import enhanceImage # Yelene functions
 from FeatureExtraction import extract_features # Gaby functions
-from IrisMatching import match_iris, get_templates # Fisher Linear discriminant and Nearest Center classifier functions
+from IrisMatching import get_templates, nearest_center # Fisher Linear discriminant and Nearest Center classifier functions
 from PerformanceEvaluation import getCRR, getROC, getCRR_plot # CRR and ROC functions
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -126,22 +126,27 @@ def main():
         print(V_train_matrix.shape)
         print(V_test_matrix.shape)
 
+        # Nearest center classifier for each metric
+        pred_l1 = nearest_center(V_test_matrix, V_train_matrix, df_feature_centers['subject'], metric='L1')
+        pred_l2 = nearest_center(V_test_matrix, V_train_matrix, df_feature_centers['subject'], metric='L2')
+        pred_cos = nearest_center(V_test_matrix, V_train_matrix, df_feature_centers['subject'])
+
         # Calculate CRR for each metric
-        crr_l1 = getCRR(df_feature_centers[['subject']], df_test_projected[['subject']], V_test_matrix, V_train_matrix, metric='L1')
-        crr_l2 = getCRR(df_feature_centers[['subject']], df_test_projected[['subject']], V_test_matrix, V_train_matrix, metric='L2')
-        crr_cos = getCRR(df_feature_centers[['subject']], df_test_projected[['subject']], V_test_matrix, V_train_matrix)
+        crr_l1 = getCRR(df_test_projected[['subject']], pred_l1)
+        crr_l2 = getCRR(df_test_projected[['subject']], pred_l2)
+        crr_cos = getCRR(df_test_projected[['subject']], pred_cos)
 
         results_crr.append((crr_l1, crr_l2, crr_cos))
         projected[dim] = (df_feature_centers, df_test_projected, V_train_matrix, V_test_matrix)
 
     # Plot CRR curve (reduced dimensions only)
     crr_plot = getCRR_plot(pd.DataFrame(results_crr[1:], columns=['L1', 'L2', 'Cosine']), V_dimensions[1:])
-    # plt.figure(plt.get_fignums()[-2])
     plt.legend(['L1', 'L2', 'Cosine'])
     plt.show()
 
     # Best dimension = highest cosine CRR among reduced dimensions
     best = int(np.argmax([r[2] for r in results_crr[1:]])) + 1
+    print(f'best dimension: {V_dimensions[best]}')
 
     crr_l1_og = results_crr[0][0]
     crr_l2_og = results_crr[0][1]
@@ -167,7 +172,6 @@ def main():
     plt.show()
 
     return df
-
 if __name__ == "__main__":
     main()
 # %%

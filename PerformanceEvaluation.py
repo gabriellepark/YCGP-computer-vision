@@ -12,8 +12,8 @@ def getL1Sim(input_feature, template):
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances.html
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances_argmin.html
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html#scipy.spatial.distance.pdist
-    
-    # Computes L1 similarity using sklearn Manhattan distance, referred to as 'cityblock' following scipy 
+
+    # Computes L1 similarity using sklearn Manhattan distance, referred to as 'cityblock' following scipy
     # reference names, and returns index of minimum distance.
     min_index = pairwise_distances_argmin(input_feature, template, metric='cityblock')
 
@@ -31,7 +31,7 @@ def getL2Sim(input_feature, template):
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances.html
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances_argmin.html
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html#scipy.spatial.distance.pdist
-    
+
     # Computes L2 similarity, referred to as 'euclidean' following scipy reference names, and returns index of minimum distance.
     min_index = pairwise_distances_argmin(input_feature, template, metric='euclidean')
 
@@ -50,7 +50,7 @@ def getCosineSim(input_feature, template):
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances.html
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances_argmin.html
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html#scipy.spatial.distance.pdist
-    
+
     # Computes cosine similarity
     min_index = pairwise_distances_argmin(input_feature, template, metric='cosine')
 
@@ -60,37 +60,17 @@ def getCosineSim(input_feature, template):
     return min_index, similarity_dist
 
 
-def getCRR(train_y, test_y, input_feature, template, metric='cosine'):
+def getCRR(test_y, predicted):
     """
-    Given train labels and test labels with corresponding indices, decision metric,
-    and test feature array and template feature array, returns the CRR based on chosen metric.
+    Given test labels and predicted labels from nearest center classifier, return the CRR for identification mode
 
-    train_y = labels assigned to the train images ( dataframe format for easy alignment with prediction )
     test_y = labels assigned to the test images ( dataframe format for easy alignment with prediction )
-    input_feature = features array of the test image 
-    template = features array of the train image
-    metric = the distance metric to use to make predictions
+    predicted = predicted subject for each test image
 
-    Default metric is cosine similarity.
     """
 
-    # Initialize minimum distance index
-    min_index = None
-
-    if metric=='L1':
-        # Get index of minimum distance match based on L1 similarity
-        min_index, _ = getL1Sim(input_feature, template)
-
-    elif metric=='L2':
-        # Get index of minimum distance match based on L2 similarity
-        min_index, _ = getL2Sim(input_feature, template)
-
-    else:
-        # Get index of minimum distance match based on cosine similarity
-        min_index, _ = getCosineSim(input_feature, template)
-
-    # Assign prediction based on min distance
-    test_y['predicted_subject'] = train_y['subject'].iloc[min_index].to_numpy()
+    # Assign prediction from the nearest center classifier
+    test_y['predicted_subject'] = predicted
 
     # Calculate CRR
     correct_preds = sum(test_y['predicted_subject']==test_y['subject'])

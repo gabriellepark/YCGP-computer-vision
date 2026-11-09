@@ -1,15 +1,24 @@
+# FeatureExtraction.py: filtering the iris and extracting features;
 
+
+# Import functions
 import cv2
 import numpy as np
 
 
 
-# implementation bsaed on Ma et al. 2003
+# Implementation based on Ma et al. 2003
 # https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=1251145&utm_source=scopus&getft_integrator=scopus
 
-# WILL COME BACK TO ADJUST AND COMMENT
 
 def spatial_filter(dx, dy, size=27):
+    """
+    Function to get spatial filter, based on Ma's implementation.
+    dx = space constant of Gaussian envelope along x direction
+    dy = space constant of Gaussian envelope along y direction
+    size = width and height of the square kernel in pixels
+    return: size x size kernel (Gaussian envelope x circularly symmetric sinusoid), shifted to zero mean to be convolved with ROI using cv2.filter2D
+    """
     # Spatial filter: Gaussian envelope x modulating function
     # Ma's defined filter uses a circularly symmetric sinusoid (M1),
     # unlike the even-symmetric Gabor filter's oriented sinusoid
@@ -17,49 +26,81 @@ def spatial_filter(dx, dy, size=27):
     f = 1 / dx  # frequency as one cosine cycle across gaussian's width
     half = size // 2  # size determined to cover about +/- 3*dx for wider channels
 
+    # Intialize kernel
     kernel = np.zeros((size, size), dtype=np.float32)
+    # Iterates through each cell in the grid
     for i in range(size):
         for j in range(size):
-            # pixel (i, j) is coordinates (x, y) centered at (0, 0)
+            # Pixel (i, j) is coordinates (x, y) centered at (0, 0)
+            # Convert array indices to coordinates centered on kernel middle
             x = j - half
             y = i - half
+
+            # Equation from Ma's implementation
             m1 = np.cos(2 * np.pi * f * np.sqrt(x**2 + y**2))
 
             gauss = np.exp(-0.5 * (x**2 / dx**2 + y**2 / dy**2)) / (2 * np.pi * dx * dy)
             kernel[i, j] = gauss * m1
 
+    # Subtract average kernel weight so all weights sum to 0
     kernel = kernel - kernel.mean()
     return kernel
 
 
 
 def extract_features(enhanced):
+    """
+    Function to extract features from image
+    Enhanced: enhanced image from ImageEnhancement.py
+    Returns: 1D feature vector of length 1536
 
-    # extract upper portion of the normalized image closer to the pupil
-    # 3.3.2 identifies ROI as 48 x 512
+    Filters ROI with two spatial filter channels then summarizes
+    each 8 x 8 block of the filtered images with its mean and average absolute deviation
+
+
+    """
+
+    # Extract upper portion of the normalized image closer to the pupil
+    # Ma's Section 3.3.2 identifies ROI as 48 x 512
+    # Convert to float32 so filtering can produce negative values
     roi = enhanced[:48, :].astype(np.float32)
 
+    # Initialize feature list
     features = []
-    # 3.3.1:
+
+    # Section 3.3.1 details the first and second channel
     # first channel: dx = 3, dy = 1.5
     # second channel: dx = 4.5, dy = 1.5
+    # Each channel captures texture at a different scale/frequency so we iterate through both
     for dx, dy in [(3, 1.5), (4.5, 1.5)]:
-        # equation 4: Fi(x, y) = integral of I(x1, y1) * Gi(x - x1, y - y1)
-        # eqn 5 uses the magnitude |Fi|
+        # Equation 4: Fi(x, y) = integral of I(x1, y1) * Gi(x - x1, y - y1)
+        # cv2.filter2D slides the spatial filter over every pixel of the ROI and computes weighted sum
+        # Filter is symmetric so filter2D's correlation equals the convolution in Eqn 4
+        # Eqn 5 uses the magnitude |Fi| so take the absolute value
         filtered = np.abs(cv2.filter2D(roi, cv2.CV_32F, spatial_filter(dx, dy)))
 
-        # extract statistical features in each 8 x 8 block of two filtered images
-        # total number of small blocks: (48 x 512) / (8 x 8) = 384 blocks per channel, 768 in total
+        # Extract statistical features in each 8 x 8 block of two filtered images
+        # Total number of small blocks: (48 x 512) / (8 x 8) = 384 blocks per channel, 768 in total
+        # Iterate through the filtered image in 8 x 8 blocks
         for i in range(0, 48, 8):
             for j in range(0, 512, 8):
+                # Get each 8x8 block
                 block = filtered[i:i + 8, j:j + 8]
-                m = block.mean()                        # eqn 5: mean of magnitude of filtered block
-                sigma = np.abs(block - m).mean()        # eqn 5: average absolute deviation
+                m = block.mean() # Eqn 5: mean of magnitude of filtered block
+                sigma = np.abs(block - m).mean() # Eqn 5: average absolute deviation
+                # Add to feature list
                 features += [m, sigma]
 
-    # eqn 6: V = [m1, sigma1, m2, sigma2, ..., m768, sigma768]^T
+    # Eqn 6: V = [m1, sigma1, m2, sigma2, ..., m768, sigma768]^T
     return np.array(features)
 
+
+
+
+
+
+
+# ___________________________________________________________________________________________________
 
 # Notes from Ma et al. 2003:
 # frequency info should account for major differences of irises from different people
