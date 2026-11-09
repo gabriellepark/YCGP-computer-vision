@@ -8,7 +8,9 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 # WILL COME BACK TO ADJUST AND COMMENT
 
-def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3, 0, 3, 6, 9), use_lda=True, n_components = None):
+
+def get_templates(X_train, y_train, X_test, angles=(-9, -6, -3, 0, 3, 6, 9),
+                  use_lda=True, n_components=None):
     # after feature extraction, iris image represented as a feature vector of length 1,536
     y_train = np.array(y_train)
     angle_train = np.tile(angles, len(y_train) // len(angles))
@@ -18,12 +20,15 @@ def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3
     # W is projection matrix
     # V is original feature vector
     if use_lda:
-        lda = LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto').fit(X_train, y_train)
+        lda = LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto', n_components=n_components).fit(X_train, y_train)
         f_train = lda.transform(X_train)
         f_test = lda.transform(X_test)
+        mean = f_train.mean(axis=0)
+        f_train, f_test = f_train - mean, f_test - mean
     else:
         f_train = np.asarray(X_train)
         f_test = np.asarray(X_test)
+
 
     # rotation invariance: iris unwrapped at initial angles -9, -6, -3, 0, 3, 6, 9,
     # giving 7 templates per class (one center per class per angle)
@@ -31,30 +36,23 @@ def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3
     centers = []
 
     for c in classes:
-        eye_centers =[]
-        for a in np.unique(angle_train):
+        for a in angles:
             mask = (y_train == c) & (angle_train == a)
-            eye_centers.append(f_train[mask].mean(axis=0))
-        centers.append(eye_centers)
-    centers = np.array(centers)
+            centers.append(f_train[mask].mean(axis=0))
+
+    template = np.array(centers)
+    template_labels = np.repeat(classes, len(angles))
+    return f_test, template, template_labels
+
+def match_iris(X_train, y_train, X_test, metric='cosine', angles=(-9, -6, -3, 0, 3, 6, 9),
+               use_lda=True, n_components=None):
 
     # nearest center classifier for classification in low dim feature space
-    # predictions = []
-    # for f in f_test:
-    #     if metric == 'l1':
-    #         d = np.abs(centers - f).sum(axis=-1)
-    #     elif metric == 'l2':
-    #         d = ((centers - f)**2).sum(axis=-1)
-    #     else:
-    #         d = 1 - (centers @ f) / (np.linalg.norm(centers, axis=-1) * np.linalg.norm(f))
-    #
-    #     d = d.min(axis = 1)
-    #
-    #     argmin = np.argmin(d)
-    #
-    #     predictions.append(classes[argmin])
-    #
-    # return np.array(predictions)
+
+    f_test, template, t_labels = get_templates(X_train, y_train, X_test, angles,
+                                               use_lda, n_components)
+    classes = np.unique(t_labels)
+    centers = template.reshape(len(classes), len(angles), -1)
 
     predictions, dists = [], []
     for f in f_test:
@@ -65,7 +63,7 @@ def match_iris(X_train, y_train, X_test, metric = 'cosine', angles = (-9, -6, -3
         else:
             d = 1 - (centers @ f) / (np.linalg.norm(centers, axis=-1) * np.linalg.norm(f))
 
-        d = d.min(axis=1)              # best of the 7 rotations, per class
+        d = d.min(axis=1)
         dists.append(d)
         predictions.append(classes[np.argmin(d)])
 

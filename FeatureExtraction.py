@@ -27,6 +27,8 @@ def spatial_filter(dx, dy, size=27):
 
             gauss = np.exp(-0.5 * (x**2 / dx**2 + y**2 / dy**2)) / (2 * np.pi * dx * dy)
             kernel[i, j] = gauss * m1
+
+    kernel = kernel - kernel.mean()
     return kernel
 
 

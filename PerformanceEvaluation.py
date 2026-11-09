@@ -80,11 +80,11 @@ def getCRR(train_y, test_y, input_feature, template, metric='cosine'):
 def getCRR_plot(CRR, V_dimension):
     # Plot CRR curve
     plt.figure()
-    plt.plot( V_dimension, round(CRR*100))
+    plt.plot( V_dimension, np.round(CRR*100))
     plt.xlabel('Dimensionality of the feature vector')
     plt.ylabel('Correct Recognition rate (%)')
     plt.title('CRR Curve')
-    return plt.figure()
+    return plt.gcf()
 
 def getROC(train_y, test_y, input_feature, template, thresholds=(0.446, 0.472, 0.502)):
     """
@@ -147,4 +147,4 @@ def getROC(train_y, test_y, input_feature, template, thresholds=(0.446, 0.472, 0
     
     roc_table = pd.DataFrame(data_dict)
 
-    return roc_table, plt.figure()
+    return roc_table, plt.gcf()
