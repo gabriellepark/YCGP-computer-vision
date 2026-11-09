@@ -4,6 +4,11 @@ import pandas as pd
 from sklearn.metrics import pairwise_distances_argmin, pairwise_distances, roc_curve
 
 def getL1Sim(input_feature, template):
+    """"
+    Function to calculate the L1 similarity between two eyes.
+    input_feature = features array of the test image
+    template = features array of the train image
+    """
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances.html
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances_argmin.html
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html#scipy.spatial.distance.pdist
@@ -18,6 +23,11 @@ def getL1Sim(input_feature, template):
 
 
 def getL2Sim(input_feature, template):
+    """"
+    Function to calculate the L2 similarity between two eyes.
+    input_feature = features array of the test image
+    template = features array of the train image
+    """
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances.html
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances_argmin.html
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html#scipy.spatial.distance.pdist
@@ -32,6 +42,11 @@ def getL2Sim(input_feature, template):
 
 
 def getCosineSim(input_feature, template):
+    """"
+    Function to calculate the Cosine similarity between two eyes.
+    input_feature = features array of the test image
+    template = features array of the train image
+    """
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances.html
     # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances_argmin.html
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html#scipy.spatial.distance.pdist
@@ -48,7 +63,14 @@ def getCosineSim(input_feature, template):
 def getCRR(train_y, test_y, input_feature, template, metric='cosine'):
     """
     Given train labels and test labels with corresponding indices, decision metric,
-    and test feature and template, returns the CRR based on chosen metric.
+    and test feature array and template feature array, returns the CRR based on chosen metric.
+
+    train_y = labels assigned to the train images ( dataframe format for easy alignment with prediction )
+    test_y = labels assigned to the test images ( dataframe format for easy alignment with prediction )
+    input_feature = features array of the test image 
+    template = features array of the train image
+    metric = the distance metric to use to make predictions
+
     Default metric is cosine similarity.
     """
 
@@ -78,9 +100,14 @@ def getCRR(train_y, test_y, input_feature, template, metric='cosine'):
 
 
 def getCRR_plot(CRR, V_dimension):
+    """"
+    Function to plot the CRR curve.
+    CRR = Correct Recognition Rates list (y-axis)
+    V_dimension = list of the different feature dimensions being tested
+    """
     # Plot CRR curve
     plt.figure()
-    plt.plot( V_dimension, np.round(CRR*100))
+    plt.plot( V_dimension, np.round(np.array(CRR)*100), marker='o')
     plt.xlabel('Dimensionality of the feature vector')
     plt.ylabel('Correct Recognition rate (%)')
     plt.title('CRR Curve')
@@ -88,7 +115,17 @@ def getCRR_plot(CRR, V_dimension):
 
 def getROC(train_y, test_y, input_feature, template, thresholds=(0.446, 0.472, 0.502)):
     """
-    Function to plot the ROC curve given thresholds. 
+    Given train labels and test labels with corresponding indices, thresholds,
+    and test feature array and template feature array, returns the ROC table based on chosen thresholds.
+    Function also plots the ROC curve, using 100 thresholds in linear space between min and max cosine similarity
+    distances.
+
+    train_y = labels assigned to the train images ( dataframe format for easy alignment with prediction )
+    test_y = labels assigned to the test images ( dataframe format for easy alignment with prediction )
+    input_feature = features array of the test image 
+    template = features array of the train image
+    thresholds = the thresholds to use to assess FAR and FRR.
+
     FAR = False Acceptance Rate
     FRR = False Rejection Rate
     """
@@ -100,7 +137,7 @@ def getROC(train_y, test_y, input_feature, template, thresholds=(0.446, 0.472, 0
     # Get similarity matrix
     _, similarity_distances = getCosineSim(input_feature,template)
 
-    # True preds 
+    # Define true preds and wrong preds based on similarity distances
     true = similarity_distances[mask]
     wrong = similarity_distances[~mask]
 
@@ -108,6 +145,8 @@ def getROC(train_y, test_y, input_feature, template, thresholds=(0.446, 0.472, 0
     frr_list = []
     far_list = []
 
+    # Loop over 100 thresholds within similarity distances range, to calculate
+    # FAR and FRR at each and plot the ROC curve
     for t in np.linspace(similarity_distances.min(), similarity_distances.max(), 100):
         # False rejection rate are true preds above threshold
         frr = (true>=t).mean()
@@ -126,12 +165,12 @@ def getROC(train_y, test_y, input_feature, template, thresholds=(0.446, 0.472, 0
     plt.ylabel('False Rejection Rate')
     plt.title('ROC Curve')
 
-    # Build ROC table for best dimension and compare to original feature
-
+    # Build ROC table
     # Re-Initialize arrays to store rates
     frr_list = []
     far_list = []
 
+    # Loop over the chosen thresholds for the ROC table and calculate FAR and FRR at each
     for t in thresholds:
         # False rejection rate are true preds above threshold
         frr = (true>=t).mean()
@@ -145,6 +184,7 @@ def getROC(train_y, test_y, input_feature, template, thresholds=(0.446, 0.472, 0
                 'False Acceptance Rate':far_list,
                 'False Rejection Rate':frr_list}
     
+    # Create ROC table with resulting FARs and FRRs
     roc_table = pd.DataFrame(data_dict)
 
     return roc_table, plt.gcf()
