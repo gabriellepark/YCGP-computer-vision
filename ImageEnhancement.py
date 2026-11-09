@@ -10,6 +10,11 @@ import skimage as ski
 # %%
 
 def _plotHist(img, bins =256, range = [0, 256]):
+    """
+    Function to plot the histogram of an image values, given the image
+    bins desired and range determining the x axis ticks.
+    This is useful to view histograms pre and post image equalization.
+    """
     plt.figure()
     plt.hist(img.flatten(),bins,range, color = 'b')
     plt.xlim([0,256])
@@ -17,6 +22,13 @@ def _plotHist(img, bins =256, range = [0, 256]):
 
 
 def _padImage(img: np.ndarray, block_size=(16, 16)):
+    """"
+    Function to pad the image, in case the block dimensions we apply to the image 
+    (i.e, mean filtering, block by block equalization) does not divided evenly into the image.
+    Given image and block size, the function determines the image size, then calculates the 
+    remainder when we divide the image by block_size. It then pads image to the next dimension 
+    that enables perfect block divide.
+    """
     # Get image current size
     dimX = img.shape[1]
     dimY = img.shape[0]
@@ -25,14 +37,16 @@ def _padImage(img: np.ndarray, block_size=(16, 16)):
     block_size_x = block_size[1]
     block_size_y = block_size[0]
 
+    # Calculate the remainder, if 0 = no padding, else we will pad to the next evenly divisible dimension.
     remainder_x = dimX%block_size_x
     remainder_y = dimY%block_size_y
 
-    # pad width takes ((top, bottom), (left, right))
-    # Since block-reduce starts at top left, we will pad bottom, right
+    # pad width takes ((top, bottom), (left, right)) - https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+    # Since block-reduce (https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.block_reduce) 
+    # starts at top left, we will pad bottom, right
     if remainder_x != 0:
         pad_amount = block_size_x - remainder_x
-        # For ring, wrap works as one edge is the continuation of the other
+        # For ring, wrap works as one edge is the continuation of the other (mimic real eye ring properties)
         img = np.pad(array=img, pad_width=((0, 0), (0, pad_amount)) , mode='wrap')
     
     if remainder_y != 0:
@@ -44,6 +58,14 @@ def _padImage(img: np.ndarray, block_size=(16, 16)):
 
 
 def _equalizeImg(img, block_shape=(32, 32), show=False):
+    """"
+    Function to apply histogram equalization on an image, block by block.
+    img = image changes are applied to.
+    block_shape = dimensions of the block used to apply equalization.
+    show = whether to show image histogram or not.
+    This set-up replicates the paper's method, where histogram equalization is 
+    applied on non-overlapping blocks in the image (Ma et al., Personal Identification Based on Iris Texture Analysis, 3.2.3 Image Enhancement).
+    """
     # Copy image to create view as blocks
     img_tmp = img.copy()
 
@@ -53,9 +75,10 @@ def _equalizeImg(img, block_shape=(32, 32), show=False):
     # Normalize image to fit the grayscale 0 to 255. Use CV_8U to ensure unint8 values for equalizer.
     img_tmp = cv2.normalize(img_tmp, dst= None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U, mask=None)
 
-    # Create a view
+    # Create a view for block iteration
     blocks = ski.util.view_as_blocks(img_tmp, block_shape)
 
+    # Loop over each block, and apply equalization on that focused area
     for i in range(blocks.shape[0]):
         for j in range(blocks.shape[1]):
             # Equalize block
@@ -71,12 +94,14 @@ def _equalizeImg(img, block_shape=(32, 32), show=False):
 def enhanceImage(img, block_size=(16, 16), show=False):
     """
     Function to enhance the quality of the normalized image.
-    The function uses OpenCV's .equalizeHist() function on the image and returns
-    enhanhanced image.
+    The function uses OpenCV's .equalizeHist() function on the image, by leveraging
+    non-overlapping blocks, and returns enhanhanced image.
+    img = image changes are applied to.
+    block_size = dimensions of the block used to apply mean filtering.
+    show=whether to show image histogram or not.
     Assumes image is already in gray scale.
     """
 
-    # plt.imshow(img, cmap='gray')
     # Save original image size
     og_img_size = img.shape
 
@@ -107,6 +132,12 @@ def enhanceImage(img, block_size=(16, 16), show=False):
 
     # Use histogram equalization to enhance image quality for dark settings
     img_histEqualization = _equalizeImg(enhanced_image, show=show)
+
+    # May try - https://stackoverflow.com/questions/71587467/what-kind-of-image-processing-techniques-which-i-can-deploy-to-remove-eye-lashes
+    # white_image = np.full((img.shape[0], img.shape[1]), 255, dtype=np.uint8)
+    # cv2.circle(white_image, (inner_circle[0], inner_circle[1]), inner_circle[2]+30, (0, 0, 0), -1)
+    # roi = cv2.bitwise_or(median,white_image)
+    # #median is the processed binary image
 
     return img_histEqualization
 # %%

@@ -55,7 +55,7 @@ def main():
     angles = (-9, -6, -3, 0, 3, 6, 9)
 
     # Load all images (session 1 = train, session 2 = test); use range=(1, 21) for a quick test
-    df = load_data(folder=base)
+    df = load_data(folder=base, subjects = range(1,21))
     print(df.shape)
 
     # Apply localization algorithm on all the images in our dataset
@@ -138,6 +138,7 @@ def main():
     crr_plot = getCRR_plot(pd.DataFrame(results_crr[1:], columns=['L1', 'L2', 'Cosine']), V_dimensions[1:])
     # plt.figure(plt.get_fignums()[-2])
     plt.legend(['L1', 'L2', 'Cosine'])
+    plt.show()
 
     # Best dimension = highest cosine CRR among reduced dimensions
     best = int(np.argmax([r[2] for r in results_crr[1:]])) + 1

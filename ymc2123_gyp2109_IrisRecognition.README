@@ -1,0 +1,133 @@
+### Project Description
+
+This project aims to build an iris recognition system, based on the image of 108 eyes. The design
+of our solution follows closely the methods described in Ma et al., Personal Identification Based on Iris Texture Analysis, 
+IEEE TRANSACTIONS ON PATTERN ANALYSIS AND MACHINE INTELLIGENCE, VOL. 25, NO. 12, DECEMBER 2003
+(https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=1251145&utm_source=scopus&getft_integrator=scopus)
+
+
+The data is split as follows: 108 eyes, 7 iris images per eye, which were captured in two sessions 
+(3 in the first session, 4 in the second session). All images are stored as BMP format with 320x280 pixel size. 
+
+To achieve our goal, the pipeline is split in 6 main scripts:
+    – IrisRecognition.m/py: the main function, which will use all the following sub functions:
+    – IrisLocalization.m/py: detecting pupil and outer boundary of iris. You can choose other iris
+    localization methods if they work better;
+    – IrisNormalization.m/py: mapping the iris from Cartesian coordinates to polar coordinates;
+    – ImageEnhancement.m/py: enhancing the normalized iris;
+    – FeatureExtraction.m/py: filtering the iris and extracting features;
+    – IrisMatching.m/py: using Fisher linear discriminant for dimension reduction and nearest center
+    classifier for classification;
+    – PerformanceEvaluation.m/py: calculating the CRR for the identification mode (CRR for all three
+    measures, i.e., L1, L2, and Cosine similarity, should be >=80% , the higher the better), which will
+    output Table 3 & Fig. 10 (refer to Ma’s paper); calculating ROC curve for verification mode, which
+    will output Table 4 and Fig. 11 
+
+(Applied Computer Vision course, GroupProject.pdf, p. 3)
+
+Below, we describe the instruments used within each script.
+
+    1. IrisLocalization
+
+
+    2. IrisNormalization
+
+The iris normalization step takes in the output of the localization function, namely the position of the pupil within the image (center_x, center_y, radius),
+and the same information for the iris outer boundary. 
+
+With these centers and radii, the function “unwraps” the ring-shaped iris region into a fixed-size rectangular image, following the method in Ma et al. (Section 3.2.2, Eq. 2). 
+Following the paper, we chose M (height from pupil boundary to iris boundary) × N (width for the unwrapped iris ring) = 64 × 512 as our ouput dimensions for the normalized iris. 
+
+These are all the parameters passed into the function. The steps within the function are as follows:
+
+First, we initialize the output image as an array of zeros with dimensions M × N. After that, we create variable assignments for each information within the pupil and iris info tuples.
+We then compute values following the system of equations described in the paper, for each cell (X, Y). 
+For each cell, the column index X is converted to an angle θ = 2πX / N, so the 512 columns cover a full 360° around the iris. 
+In the direction of this angle, we calculate the x and y positions of the point on the pupil boundary and of the point on the iris outer boundary, each using its own center and radius. 
+The row index Y then sets the position between these two points, from the pupil edge (Y = 0) to the iris boundary, and the result is clipped to stay within the image.
+Finally, the (x, y) position is rounded to the nearest pixel, and that pixel’s value from the original image is assigned to cell (X, Y) of the output. 
+Once every cell has been filled, the function returns the normalized 64 × 512 iris image.
+
+    3. ImageEnhancement
+
+The image enhancement step takes in the normalized 64 × 512 iris image and improves its contrast, following the method in Ma et al. (Section 3.2.3). The paper first estimates the background illumination 
+of the image and removes it, then applies histogram equalization on small blocks of the image. 
+Our script does the same, using three helper functions and one main function.
+
+The first helper, _plotHist, plots the histogram of an image’s pixel values. It is only used to view the histogram before or after equalization, when show=True.
+
+The second helper, _padImage, makes sure the image divides evenly into blocks of a given size. It calculates the remainder when the image width and height are divided by the block size. 
+If there is a remainder, it pads the image on the right or bottom up to the next size that divides evenly. 
+The width is padded with the wrap mode, since the left and right edges of the unwrapped iris are continuous. 
+The height is padded with the edge mode, which repeats the last row of pixels.
+
+The third helper, _equalizeImg, applies histogram equalization block by block. It first pads the image if needed, then rescales its values to the 0 to 255 grayscale range as uint8, which is the format OpenCV’s equalizer expects. 
+It then splits the image into non-overlapping 32 × 32 blocks (following paper design) and applies cv2.equalizeHist to each block separately.
+
+The main function, enhanceImage, brings these together. First, it pads the image if needed and splits it into 16 × 16 blocks (following paper design). 
+It takes the mean of each block, which gives a small 4 × 32 image that estimates the background illumination. 
+This estimate is resized back to the original 64 × 512 size with bicubic interpolation and subtracted from the normalized image. 
+Finally, the result is passed to _equalizeImg, and the function returns the enhanced iris image.
+
+    4. FeatureExtraction
+
+
+
+    5. IrisMatching
+
+
+    6. PerformanceEvaluation
+
+The evaluation script contains the functions used to match test images to training images and to measure performance. These functions are imported into the main script, where they are applied to the extracted features 
+to produce the performance metrics and curves.
+
+The first three functions, getL1Sim, getL2Sim and getCosineSim, compare the feature vectors of the test images with those of the training images (the templates). 
+Each one uses a different distance measure: L1 (Manhattan) distance, L2 (Euclidean) distance or cosine distance, following the three measures used in Ma et al.
+Each function returns two outputs: the index of the closest training image for each test image, and the full matrix of distances between all test and training images. 
+The index is used to make predictions, and the distance matrix is used for the ROC curve.
+
+The getCRR function calculates the Correct Recognition Rate (CRR) for a chosen distance measure, with cosine as the default. It calls the matching similarity function to find the closest training image for each test image, 
+and assigns that image’s subject as the predicted subject. The CRR is the share of test images whose predicted subject matches their true subject.
+
+The getCRR_plot function plots the CRR against the dimensionality of a given feature vector. It takes in multiple CRR values, calculated for each of the dimensions of the feature space list
+and plots them, similar to the paper (4.3 Experimental Results of Iris Recognition, Fig. 10). This shows how recognition performance changes as the number of features changes.
+
+The getROC function evaluates the model in verification mode, using cosine distance. It first builds a mask that marks which test and training image pairs belong to the same subject. 
+Distances for same-subject pairs are true matches, and distances for different-subject pairs are false matches. For a given threshold, a pair is accepted if its distance is below the threshold. 
+The False Rejection Rate (FRR) is the share of true pairs that are rejected, and the False Acceptance Rate (FAR) is the share of false pairs that are accepted. 
+The function calculates both rates over 100 thresholds between the smallest and largest distance, and plots the ROC curve with a log scale on the FAR axis to match Figure 13 of the paper (4.3.4 Comparison with Existing Methods, Fig. 10). 
+It also returns a table of FAR and FRR at the three thresholds chosen from the paper (0.446, 0.472 and 0.502).
+
+    7. IrisRecognition
+
+The main script brings all the steps together, from loading the images to computing the performance metrics. It follows the full pipeline of Ma et al.
+
+First, the load_data function loads the images for all 108 subjects. It reads each grayscale image from both sessions and stores it in a dataframe with its file name, subject and session. 
+Session 1 images are used for training and session 2 images for testing. This dataframe keeps track of every step applied to the images.
+
+Next, we apply iris localization to every image to get the pupil and iris boundaries. Images where localization fails are dropped. Each remaining image is then normalized to M × N = 64 × 512 and enhanced,
+and the results are saved as new columns in the dataframe.
+
+The dataframe is then split into training and test sets. For feature extraction, each training image is rotated to seven angles (−9°, −6°, −3°, 0°, 3°, 6° and 9°) before extracting its features, following the paper. 
+Since the image is already unwrapped, a rotation is simply a horizontal shift of the columns. This gives seven templates per training image, which helps account for small head rotations. Test images are used as they are, without rotation.
+
+We then test different feature dimensions. The value −1 stands for the original feature set, with no dimensionality reduction. The other values (10, 20, 40, 60, 80, 100 and 107) are the reduced dimensions obtained with Fisher linear discriminant analysis, 
+which allows at most 107 dimensions for 108 classes. For each dimension, the nearest center classifier builds the templates, and the CRR is calculated with the L1, L2 and cosine distances.
+
+Finally, the script plots the CRR curve for the reduced dimensions and selects the best dimension, the one with the highest cosine CRR. It prints a table comparing the CRR of the original and reduced features for each distance measure. 
+At this best dimension, it also plots the ROC curve and prints the FAR and FRR at the three thresholds from the paper.
+
+### Limitation(s) of the current design.
+
+How can you improve it?
+
+
+
+### Peer evaluation form
+
+Role assignments for this project
+
+- Yelene Cisse (ymc2123): IrisNormalization.m/py, ImageEnhancement.m/py, PerformanceEvaluation.m/py
+- Gabrielle Park (gyp2109): IrisLocalization.m/py, FeatureExtraction.m/py, IrisMatching.m/py
+
+Both members equally contributed to the IrisRecognition.m/py main function, and other parts of the project.
