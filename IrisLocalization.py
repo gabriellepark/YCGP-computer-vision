@@ -43,9 +43,16 @@ def irisLocalization(img, show=False):
         # https://www.geeksforgeeks.org/python/otsu-thresholding-using-opencv/
         _, otsu_thresh = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
+        # keep only the largest dark blob, drops eyelashes/shadows
+        n, labels, stats, _ = cv2.connectedComponentsWithStats(otsu_thresh)
+        if n < 2:
+            return img, None, None
+        biggest = np.argmax(stats[1:, cv2.CC_STAT_AREA]) + 1
+        pupil_mask = (labels == biggest).astype(np.uint8)
+
         # centroid of the binary region as accurate estimate of the pupil coordinates
         # use image moments to calculate centroid https://docs.opencv.org/4.9.0/dd/d49/tutorial_py_contour_features.html
-        m = cv2.moments(otsu_thresh, binaryImage=True)
+        m = cv2.moments(pupil_mask, binaryImage=True)
         Xp = int(x0 + m['m10'] / m['m00'])
         Yp = int(y0 + m['m01'] / m['m00'])
 
@@ -66,28 +73,26 @@ def irisLocalization(img, show=False):
     # https://docs.opencv.org/4.13.0/da/d53/tutorial_py_houghcircles.html
     region = cv2.medianBlur(img[y0:Yp + 150, x0:Xp + 150], 5)
 
-    # will come back to tune these params because it's not getting everything
+    # for pupil, search radius is around the step 2 estimate (r_pupil +/- 20%)
     pupil = cv2.HoughCircles(region, cv2.HOUGH_GRADIENT, 1, 300, param1=50, param2=15,
                              minRadius=int(int(r_pupil) * 0.8), maxRadius=int(int(r_pupil) * 1.2))
 
-    irises = cv2.HoughCircles(region, cv2.HOUGH_GRADIENT, 1, 15, param1=30, param2=20,
-                              minRadius=max(int(r_pupil * 1.8), 80), maxRadius=150)
+    # for iris, outer boundary radius range typical for CASIA v1 images (90-130 px)
+    irises = cv2.HoughCircles(region, cv2.HOUGH_GRADIENT, 1, 5, param1=30, param2=20,
+                              minRadius=90, maxRadius=130)
     if pupil is None or irises is None:
         return img, None, None
 
+    # shift circle centers from region coordinates back to full image coordinates
     pupil = pupil[0, 0] + [x0, y0, 0]
+    irises = irises[0] + [x0, y0, 0]
 
-    irises_recentered = irises[0] + [x0, y0, 0]
-    # picks the iris that is euclidean distance closest to the pupil
-    iris = irises_recentered[np.argmin(np.hypot(irises_recentered[:, 0] - pupil[0], irises_recentered[:, 1] - pupil[1]))]
-
-    dist_hypot = np.hypot(irises_recentered[:, 0] - pupil[0], irises_recentered[:, 1] - pupil[1])
-    dist_closeness = irises_recentered[dist_hypot < 10]
-    if len(dist_closeness) > 0:
-        iris = dist_closeness[np.argmax(dist_closeness[:, 2])]
-    else:
-        iris = irises_recentered[np.argmin(dist_hypot)]
-
+    # pick the strongest circle roughly concentric with the pupil
+    # HoughCircles returns candidates sorted by votes, so the first close one is the strongest
+    # if none are within 15 px, fall back to the circle whose center is closest to the pupil
+    d = np.hypot(irises[:, 0] - pupil[0], irises[:, 1] - pupil[1])
+    close = irises[d < 15]
+    iris = close[0] if len(close) else irises[np.argmin(d)]
 
     if show:
         cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
@@ -99,16 +104,20 @@ def irisLocalization(img, show=False):
 
     return img, pupil, iris
 
-#
+
 # if __name__ == '__main__':
 #     irisLocalization('datasets/CASIA Iris Image Database (version 1.0)/001/1/001_1_1.bmp')
 
 # if __name__ == '__main__':
 #     base = 'datasets/CASIA Iris Image Database (version 1.0)'
-
-#     for subject in range(1, 11):
+#
+#     for subject in range(50, 60):
 #         s = f'{subject:03d}'
 #         for session in (1, 2):
 #             name = f'{s}_{session}_1.bmp'  # first image in the folder
 #             print(name)
-#             img, pupil, iris = irisLocalization(f'{base}/{s}/{session}/{name}', show=True)
+#             img = cv2.imread(f'{base}/{s}/{session}/{name}', cv2.IMREAD_GRAYSCALE)
+#             assert img is not None, f'could not read {name}'
+#             _, pupil, iris = irisLocalization(img, show=True)
+#             if pupil is None:
+#                 print('failed')

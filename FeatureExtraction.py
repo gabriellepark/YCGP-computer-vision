@@ -14,7 +14,7 @@ def spatial_filter(dx, dy, size=27):
     # Ma's defined filter uses a circularly symmetric sinusoid (M1),
     # unlike the even-symmetric Gabor filter's oriented sinusoid
     # derived from Ma's equation #3
-    f = 1 / dy  # frequency as one cosine cycle across gaussian's width
+    f = 1 / dx  # frequency as one cosine cycle across gaussian's width
     half = size // 2  # size determined to cover about +/- 3*dx for wider channels
 
     kernel = np.zeros((size, size), dtype=np.float32)

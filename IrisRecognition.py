@@ -55,7 +55,7 @@ def main():
     angles = (-9, -6, -3, 0, 3, 6, 9)
 
     # Load all images (session 1 = train, session 2 = test); use range=(1, 21) for a quick test
-    df = load_data(folder=base, subjects = range(1,21))
+    df = load_data(folder=base)
     print(df.shape)
 
     # Apply localization algorithm on all the images in our dataset
