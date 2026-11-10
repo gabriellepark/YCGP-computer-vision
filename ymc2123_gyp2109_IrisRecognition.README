@@ -91,15 +91,35 @@ local structure of the iris. Ma et al. tells us that majority of useful informat
 octaves, so we aim to create a bank of filters to acquire this info. They break this down into two steps: spatial filters and feature vector.
 
 spatial_filter() gets new spatial filters to capture local details of the iris. The methodology is directly based on Ma et al.'s implementation
-in which kernels are given based on a 2D Gaussian envelope multiplied by a symmetric sinusoidal modulating function.
+in which kernels are given based on a 2D Gaussian envelope multiplied by a symmetric sinusoidal modulating function, M1(x, y, f) = cos(2 pi f·sqrt(x² + y²))
+Kernel is then shifted to zero mean.
 
 extract_features() is a function to extract features from the image in the upper portion closer to the pupil. It applies both filters to the region of interest.
 
 To characterize local texture information of the iris, we extract statistical features in each 8 x 8 small block of the two filtered images and
 mean and the average absolute deviation are calculated for each.
 
+Two channels are used, with space constants (dx, dy) = (3, 1.5) and (4.5, 1.5). These values are given by Ma et al.
+With 384 blocks per channel and two channels, this gives 768 blocks and a feature vector of
+1536 values, V = [m1, sigma1, m2, sigma2, ..., m768, sigma768]^T.
 
     5. IrisMatching
+
+Iris matching script improves classification accuracy by using Fisher linear discriminant to reduce the dimensionality of the
+feature vector and then uses the nearest center classifier for classification.
+
+get_templates() is a function to build the matching templates and project features with the Fisher linear discriminant and compute one class center per subject per rotation.
+Ma et al's justification for using the Fisher linear discriminant is that it reduces the dimensionality of the features and increases class separability.
+The function includes a flag use_lda to allow the Fisher linear discriminant to be used to project the training and test features then center both sets on training mean.
+
+When use_lda is False, the original 1536 features are kep.
+
+Then for each class at each angle, the class center is computed as the mean feature vector of the subject's three training images unwrapped at that angle.
+This results in 756 templates labeled with its subject.
+
+nearest_center() performs the classification using helper functions from PerformanceEvaluation.
+Each test feature vector is compared with all 756 templates using a specified similarity measure (L1, L2, or cosine) and is assigned
+to the closest subject.
 
 
     6. PerformanceEvaluation
@@ -154,7 +174,15 @@ ROC table:    Threshold  False Acceptance Rate  False Rejection Rate
 
 The Rejection rate range from 41%-53% for the given thresholds, pointing the pipeline wrongly rejects valid matches almost
 half of the time. This could be due to slight changes in the eye position, eye area occlusion or noise not fully removed 
-by our filtering. 
+by our filtering.
+
+Another limitation of this design is that eyelashes and eyelids are still included in the unwrapped iris ring. While we account
+for occlusions from eyelids and eyelashes through blurring in the IrisLocalization step, it is still included in the later images
+and can be confounded as iris texture. This limitation can be observed in some of the iris texture images, where eyelid/eyelashes are
+covering parts of the iris and are interpreted as iris texture. This can lead to inaccuracy in iris matching.
+To improve this in future iterations of this project, we could create a method for detecting occlusions and masking them so they are
+not included as noise.
+
 
 ### Peer evaluation form
 

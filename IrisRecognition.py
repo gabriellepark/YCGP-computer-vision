@@ -24,7 +24,7 @@ def load_data(folder, session=('1','2'), subjects = range(1,109)):
     session = indicator for folder containing session 1 of the eye capture or session 2. Session is used as 
               training data, while session 2 is used as test data.
     subjects = corresponds to each subject the eye belongs to, functions as our ID and target labels for
-               predictions later in the code.
+               predictions later in the code. Default tests full dataset of 108 eyes
     """
 
     # Return base dataframe where all data is saved
@@ -57,9 +57,13 @@ def main():
 
     # Load dataset
     base = 'datasets/CASIA Iris Image Database (version 1.0)'
+
+    # Angles to be used to approximate rotation invariance and unwrapping the iris ring in extract_features() and get_templates()
     angles = (-9, -6, -3, 0, 3, 6, 9)
 
-    # Load all images (session 1 = train, session 2 = test); use range=(1, 21) for a quick test
+
+    # Load all images (session 1 = train, session 2 = test)
+    # We used range=(1, 21) for a quick test
     df = load_data(folder=base)
     print(df.shape)
 
@@ -68,11 +72,6 @@ def main():
 
     # Unpack results and assign to corresponding columns
     _, df['pupil_info'], df['iris_info'] = zip(*results)
-
-    # Drop images where localization failed
-    failed = df['pupil_info'].apply(lambda p: p is None) | df['iris_info'].apply(lambda p: p is None)
-    print(f'{(~failed).sum()}/{len(df)} localized, failed: {df.loc[failed, "source"].tolist()}')
-    df = df[~failed].reset_index(drop=True)
 
     # Normalize images
     df['normalized_images'] = df.apply(lambda row: normalizeIris(row['original_image'], M=64, N=512, pupil_info=row['pupil_info'], iris_info=row['iris_info']), axis=1)
@@ -94,33 +93,43 @@ def main():
     df_train = df[df['split']=='1'].reset_index(drop=True)
     df_test = df[df['split']=='2'].reset_index(drop=True)
 
-    # Extract features: 7 rotated templates per training image, test images as-is
+    # 7 rotated templates per training image, test images as-is
+
+    # Train set
+    # np.roll wraps columns around to give continuous ring
+    # round(512 * a /360) converts a rotation angle a in degrees into the number of columns
+    # axis = 1 rotates along the columns
+    # Rotation for each enhanced image, for each angle
     X_train = np.array([extract_features(np.roll(enh, round(512 * a / 360), axis=1))
                         for enh in df_train['enhanced_images'] for a in angles])
+    # Subject label repeated 7 times per training image for y_train
     y_train = np.repeat(df_train['subject'].to_numpy(), len(angles))
+    # Test set
+    # One feature vector per test image without rotation
     X_test = np.vstack(df_test['enhanced_images'].apply(extract_features).tolist())
     y_test = df_test['subject'].to_numpy()
-    print(f'train: {X_train.shape}, test: {X_test.shape}')  # expect (2268, 1536), (432, 1536)
 
     # Set dimensionality of feature vectors to test
-    # -1 = original feature set; LDA allows at most (classes - 1) dimensions
-    max_dim = len(np.unique(y_train)) - 1
-    V_dimensions = [-1] + sorted(set([k for k in [10, 20, 40, 60, 80, 100, 107] if k <= max_dim] + [max_dim]))
+    # -1 = original feature set
+    V_dimensions = [-1, 10, 20, 40, 60, 80, 100, 107]
 
     # Test different features dimensions
+    # Initialize array and set to hold results
     results_crr = []
     projected = {}
 
+    # For each dimension in set of LDA dimensions
     for dim in V_dimensions:
         # Using -1 as default full feature set
         # If not -1, then we apply dimensionality reduction
         if dim != -1:
-            # Fisher linear discriminant, then nearest center (one center per class per rotation angle)
+            # Fisher linear discriminant applied then one center per class per rotation angle
             f_test, template, t_labels = get_templates(X_train, y_train, X_test, angles, use_lda=True, n_components=dim)
         else:
-            # Apply nearest Center classifier on original features
+            # Apply nearest center classifier on original features
             f_test, template, t_labels = get_templates(X_train, y_train, X_test, angles, use_lda=False)
 
+        # For each subject, save the class centers and the test features as dfs
         df_feature_centers = pd.DataFrame({'subject': t_labels, 'features': list(template)})
         df_test_projected = pd.DataFrame({'subject': y_test, 'features': list(f_test)})
 
@@ -128,10 +137,7 @@ def main():
         V_train_matrix = np.vstack(df_feature_centers['features'])
         V_test_matrix = np.vstack(df_test_projected['features'])
 
-        print(V_train_matrix.shape)
-        print(V_test_matrix.shape)
-
-        # Nearest center classifier for each metric
+        # Nearest center classifier for each of the three metrics
         pred_l1 = nearest_center(V_test_matrix, V_train_matrix, df_feature_centers['subject'], metric='L1')
         pred_l2 = nearest_center(V_test_matrix, V_train_matrix, df_feature_centers['subject'], metric='L2')
         pred_cos = nearest_center(V_test_matrix, V_train_matrix, df_feature_centers['subject'])
@@ -141,22 +147,26 @@ def main():
         crr_l2 = getCRR(df_test_projected[['subject']], pred_l2)
         crr_cos = getCRR(df_test_projected[['subject']], pred_cos)
 
+        # Append results to crr result list
         results_crr.append((crr_l1, crr_l2, crr_cos))
+        # Save results to projected
         projected[dim] = (df_feature_centers, df_test_projected, V_train_matrix, V_test_matrix)
 
-    # Plot CRR curve (reduced dimensions only)
+    # Plot CRR curve for reduced dimensions only
     crr_plot = getCRR_plot(pd.DataFrame(results_crr[1:], columns=['L1', 'L2', 'Cosine']), V_dimensions[1:])
     plt.legend(['L1', 'L2', 'Cosine'])
     plt.show()
 
-    # Best dimension = highest cosine CRR among reduced dimensions
+    # Best dimension is highest cosine CRR among reduced dimensions
     best = int(np.argmax([r[2] for r in results_crr[1:]])) + 1
     print(f'best dimension: {V_dimensions[best]}')
 
+    # Get CRR for original dimensions
     crr_l1_og = results_crr[0][0]
     crr_l2_og = results_crr[0][1]
     crr_cos_og = results_crr[0][2]
 
+    # Get CRR for the best dimension with highest cosine CRR
     crr_l1_best = results_crr[best][0]
     crr_l2_best = results_crr[best][1]
     crr_cos_best = results_crr[best][2]
@@ -167,12 +177,12 @@ def main():
                      'CRR Reduced features':[crr_l1_best, crr_l2_best, crr_cos_best]}
 
     crr_table = pd.DataFrame(data_dict)
-    print("CRR table:", crr_table)
+    print("CRR table: ", crr_table)
 
     # get ROC curve with couple thresholds (at the best dimension)
     df_feature_centers, df_test_projected, V_train_matrix, V_test_matrix = projected[V_dimensions[best]]
     roc_table, roc_plot = getROC(df_feature_centers[['subject']], df_test_projected[['subject']], V_test_matrix, V_train_matrix, thresholds=(0.446, 0.472, 0.502))
-    print("ROC table:", roc_table)
+    print("ROC table: ", roc_table)
 
     plt.show()
 

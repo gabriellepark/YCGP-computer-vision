@@ -24,7 +24,7 @@ def get_templates(X_train, y_train, X_test, angles=(-9, -6, -3, 0, 3, 6, 9),
     return: f_test, template, template_labels
 
     """
-    # after feature extraction, iris image represented as a feature vector of length 1,536
+    # After feature extraction, iris image represented as a feature vector of length 1,536
     # Change subject labels to array
     y_train = np.array(y_train)
     # Tag each training row with its rotation angle
@@ -50,17 +50,17 @@ def get_templates(X_train, y_train, X_test, angles=(-9, -6, -3, 0, 3, 6, 9),
         mean = f_train.mean(axis=0)
         f_train, f_test = f_train - mean, f_test - mean
     else:
-        # Else, use no dimensionality reductio
+        # Else, use no dimensionality reduction
         f_train = np.asarray(X_train)
         f_test = np.asarray(X_test)
 
 
-    # rotation invariance: iris unwrapped at initial angles -9, -6, -3, 0, 3, 6, 9,
+    # Rotation invariance: iris unwrapped at initial angles -9, -6, -3, 0, 3, 6, 9,
     # giving 7 templates per class (one center per class per angle)
     classes = np.unique(y_train)
     centers = []
 
-    # For each class at each angle, compute the class center used by nearest center classifier
+    # For each class c at each angle a, compute the class center used by nearest center classifier
     for c in classes:
         for a in angles:
             # Select the training rows for subject c at angle a

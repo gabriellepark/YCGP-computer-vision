@@ -28,7 +28,7 @@ def spatial_filter(dx, dy, size=27):
 
     # Intialize kernel
     kernel = np.zeros((size, size), dtype=np.float32)
-    # Iterates through each cell in the grid
+    # Iterates through each cell in the grid i x j
     for i in range(size):
         for j in range(size):
             # Pixel (i, j) is coordinates (x, y) centered at (0, 0)
@@ -36,10 +36,13 @@ def spatial_filter(dx, dy, size=27):
             x = j - half
             y = i - half
 
-            # Equation from Ma's implementation
+            # Equation from Ma's implementation for the symmetric sinusoidal modulating function
+            # M1(x, y, f) = cos(2 pi f·sqrt(x² + y²))
             m1 = np.cos(2 * np.pi * f * np.sqrt(x**2 + y**2))
 
+            # 2D Gaussian envelope
             gauss = np.exp(-0.5 * (x**2 / dx**2 + y**2 / dy**2)) / (2 * np.pi * dx * dy)
+            # Ma's filter G(x, y, f) = Gaussian envelope x modulating function M1
             kernel[i, j] = gauss * m1
 
     # Subtract average kernel weight so all weights sum to 0
@@ -50,13 +53,12 @@ def spatial_filter(dx, dy, size=27):
 
 def extract_features(enhanced):
     """
-    Function to extract features from image
+    Function to extract features from image in upper portion closer to the pupil and apply filters to the region of interest
     Enhanced: enhanced image from ImageEnhancement.py
     Returns: 1D feature vector of length 1536
 
     Filters ROI with two spatial filter channels then summarizes
     each 8 x 8 block of the filtered images with its mean and average absolute deviation
-
 
     """
 
@@ -93,8 +95,6 @@ def extract_features(enhanced):
 
     # Eqn 6: V = [m1, sigma1, m2, sigma2, ..., m768, sigma768]^T
     return np.array(features)
-
-
 
 
 
