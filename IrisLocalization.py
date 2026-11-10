@@ -37,7 +37,7 @@ def irisLocalization(img, show=False):
     Xp = int(np.argmin(vert_proj))
     Yp = int(np.argmin(horiz_proj))
 
-    # Code to visualize the rough center
+    # Code to visualize the rough center over the original image
     if show:
         plt.imshow(img, cmap='gray')
         plt.plot(Xp, Yp, 'r+', markersize=15, mew=2)
@@ -47,8 +47,13 @@ def irisLocalization(img, show=False):
     # Step 2: refined center
     # Get 120 x 120 region of interest centered at point
     # This allows the ROI to be concentrated around an area where the pupil most likely is
+    # Ma mentions "perform the second step twice for a reasonably accurate estimate" so we run this loop twice
     for i in range(2):
+        # Select a 120 x 120 region of interest centered at the current pupil center estimate
+        # x0, y0 = top-left corner of the region
+        # center is near the left/top edge
         x0, y0 = max(Xp - 120//2, 0), max(Yp - 120//2, 0)
+        # Region of interest is cropped around this center
         roi = img[y0:Yp + 120//2, x0:Xp + 120//2]
 
         # Binarize by adaptively selecting a reasonable threshold using the gray-level histogram of this region
@@ -59,11 +64,10 @@ def irisLocalization(img, show=False):
         # Keep only the largest dark blob and drop regions with eyelashes
         # Documentation based on https://pyimagesearch.com/2021/02/22/opencv-connected-component-labeling-and-analysis/
         n, labels, stats, _ = cv2.connectedComponentsWithStats(otsu_thresh)
-        # If number of labels is less than 2, return image
-        if n < 2:
-            return img, None, None
-        # Find region that is the largest and apply a pupil mask over it
+
+        # Find region that is the largest
         biggest = np.argmax(stats[1:, cv2.CC_STAT_AREA]) + 1
+        # Apply a pupil mask over the largest region
         pupil_mask = (labels == biggest).astype(np.uint8)
 
         # Centroid of the binary region as accurate estimate of the pupil coordinates
@@ -77,6 +81,7 @@ def irisLocalization(img, show=False):
 
     # Show plot of circle to visualize center and radius
     if show:
+        # plot over original image in grayscale
         plt.imshow(img, cmap='gray')
         plt.plot(Xp, Yp, 'r+', markersize=15, mew=2)
         plt.gca().add_patch(plt.Circle((Xp, Yp), r_pupil, color='lime', fill=False))
@@ -85,22 +90,28 @@ def irisLocalization(img, show=False):
 
     # Step 3: Canny + Hough methods
     # Calculate the exact parameters of these two circles using edge detection
-    # (Canny operator in experiments) and Hough transform in a certain region determined by the center of the pupil
+    # Canny operator and Hough transform in a certain region determined by the center of the pupil
     # Here, I use a wider region to capture both the pupil and iris
     # Earlier iterations with a smaller window were too small to capture the iris
     x0, y0 = max(Xp - 150, 0), max(Yp - 150, 0)
 
     # Based on: https://docs.opencv.org/4.13.0/da/d53/tutorial_py_houghcircles.html
+    # Median blur removes small noise and keeps edges sharp
+    # I use a region of + 150 to fit the iris, ksize = 5 to remove noise from eyelashes
     region = cv2.medianBlur(img[y0:Yp + 150, x0:Xp + 150], 5)
 
-    # For pupil, search radius is around the step 2 estimate +/- 20% to ensure that anything that falls outside the radius is also captured
+    # For pupil, search radius is around the step 2 estimate +/- 20% to ensure that it only looks for circles near the radius
+    # HoughCircles implements Canny internally using HOUGH_GRADIENT
+    # it detects edges with Canny, then each edge pixel votes for possible circle centers along its gradient direction
     pupil = cv2.HoughCircles(region, cv2.HOUGH_GRADIENT, 1, 300, param1=50, param2=15,
                              minRadius=int(int(r_pupil) * 0.8), maxRadius=int(int(r_pupil) * 1.2))
 
     # According to Daugman, the resolved iris radius is typically 80-130
-    # for iris, we look for outer boundary radius range within 90-130 px range
+    # for iris, we look for outer boundary radius range within 80-130 px range
     irises = cv2.HoughCircles(region, cv2.HOUGH_GRADIENT, 1, 5, param1=30, param2=20,
-                              minRadius=90, maxRadius=130)
+                              minRadius=80, maxRadius=130)
+
+    # If nothing, return original image
     if pupil is None or irises is None:
         return img, None, None
 
@@ -111,8 +122,13 @@ def irisLocalization(img, show=False):
     # We want the strongest circle candidate that is concentric with the pupil
     # HoughCircles returns candidates sorted by votes, so the first close one is the strongest
     # If none are within 15 px, fall back to the circle whose center is closest to the pupil
+    # 15 is used as the threshold because the distance between pupil and iris should be small
+    # Calculate the distance between iris and pupil
     d = np.hypot(irises[:, 0] - pupil[0], irises[:, 1] - pupil[1])
+    # Flag for if iris is close
     close = irises[d < 15]
+    # If at least one candidate is within 15 px of the pupil center, use the best candidate
+    # Else use the candidate whose center is closest to the pupil center
     iris = close[0] if len(close) else irises[np.argmin(d)]
 
     # Show selected iris and pupil circls on original image
@@ -124,4 +140,5 @@ def irisLocalization(img, show=False):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
+    # Return image with pupil and iris circles
     return img, pupil, iris
