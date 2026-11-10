@@ -83,7 +83,7 @@ def getCRR_plot(CRR, V_dimension):
     """"
     Function to plot the CRR curve.
     CRR = Correct Recognition Rates list (y-axis)
-    V_dimension = list of the different feature dimensions being tested
+    V_dimension = list of the different feature dimensions being tested (x-axis)
     """
     # Plot CRR curve
     plt.figure()
