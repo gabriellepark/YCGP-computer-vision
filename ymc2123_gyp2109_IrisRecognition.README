@@ -112,7 +112,7 @@ get_templates() is a function to build the matching templates and project featur
 Ma et al's justification for using the Fisher linear discriminant is that it reduces the dimensionality of the features and increases class separability.
 The function includes a flag use_lda to allow the Fisher linear discriminant to be used to project the training and test features then center both sets on training mean.
 
-When use_lda is False, the original 1536 features are kep.
+When use_lda is False, the original 1536 features are kept.
 
 Then for each class at each angle, the class center is computed as the mean feature vector of the subject's three training images unwrapped at that angle.
 This results in 756 templates labeled with its subject.
@@ -163,6 +163,7 @@ which allows at most 107 dimensions for 108 classes. For each dimension, the nea
 Finally, the script plots the CRR curve for the reduced dimensions and selects the best dimension, the one with the highest cosine CRR. It prints a table comparing the CRR of the original and reduced features for each distance measure. 
 At this best dimension, it also plots the ROC curve and prints the FAR and FRR at the three thresholds from the paper.
 
+
 ### Limitation(s) of the current design.
 
 Current limitaation of the design include high False Rejection Rates, as seen below:
@@ -188,7 +189,7 @@ not included as noise.
 
 Role assignments for this project
 
-- Yelene Cisse (ymc2123): IrisNormalization.m/py, ImageEnhancement.m/py, PerformanceEvaluation.m/py
-- Gabrielle Park (gyp2109): IrisLocalization.m/py, FeatureExtraction.m/py, IrisMatching.m/py
+- Yelene Cisse (ymc2123): IrisNormalization.py, ImageEnhancement.py, PerformanceEvaluation.py
+- Gabrielle Park (gyp2109): IrisLocalization.py, FeatureExtraction.py, IrisMatching.py
 
 Both members equally contributed to the IrisRecognition.m/py main function, and other parts of the project.
