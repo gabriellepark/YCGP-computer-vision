@@ -20,6 +20,11 @@ def load_data(folder, session=('1','2'), subjects = range(1,109)):
     Function to load the dataset and build our training dataframe. It imports the images for each subject,
     and each session, and adds them to a dataset with its source. We have an indicator column 'split' to differentiate
     train and test images. The dataframe will be used throughout to keep track of each step applied to the images.
+    folder = folder where all images are located
+    session = indicator for folder containing session 1 of the eye capture or session 2. Session is used as 
+              training data, while session 2 is used as test data.
+    subjects = corresponds to each subject the eye belongs to, functions as our ID and target labels for
+               predictions later in the code.
     """
 
     # Return base dataframe where all data is saved

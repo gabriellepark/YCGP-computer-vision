@@ -16,9 +16,6 @@ def normalizeIris(img, M, N, pupil_info, iris_info):
     As such, the function returns a M x N numpy array.
     """
 
-    # # Create the output image ND array
-    # normImg = np.zeros((M,N))
-
     # Unpack localization coordinates (center_x, center_y, radius)
     # Pupil center (x,y) = (cxp, cyp); pupil radius = rp
     cxp = pupil_info[0]
@@ -30,15 +27,14 @@ def normalizeIris(img, M, N, pupil_info, iris_info):
     cyi = iris_info[1]
     ri = iris_info[2]
 
-    # Loop over each position In(X,Y) in the output image and lookup the value to assign based
-    # on the original image pixel values Io(x,y)
-    # This loop mimics the process described in the paper, where projection system and equations are described.
-    # (Ma et al., Personal Identification Based on Iris Texture Analysis, 3.2.2 Iris Normalization, (2))
+    # For every position In(X,Y) in the output image, assign the pixel value of the original image at position Io(x,y)
+    # The code below mimics the process described in the paper, where projection system and equations are described.
+    # (Ma et al., Personal Identification Based on Iris Texture Analysis, 3.2.2 Iris Normalization, Eq. (2))
 
     # Find the direction angle for each output column 
     theta = 2 * np.pi * np.arange(N) / N
 
-        # Get coordinates of the pupil boundary in the direction theta
+    # Get coordinates of the pupil boundary in the direction theta
     xp = cxp + rp * np.cos(theta)
     yp = cyp - rp * np.sin(theta)
 
@@ -55,6 +51,6 @@ def normalizeIris(img, M, N, pupil_info, iris_info):
     x = np.clip(np.round(x), 0, img.shape[1] - 1).astype(int)
     y = np.clip(np.round(y), 0, img.shape[0] - 1).astype(int)
 
-    # Look-up pixel value in original image to assign position in output image.
-    # This is our In(X,Y) = Io(x,y) from the paper
+    # Look up the pixel values in the original image for every output cell at once,
+    # and return them as the normalized image: In(X,Y) = Io(x,y) from the paper
     return img[y, x].astype(float)

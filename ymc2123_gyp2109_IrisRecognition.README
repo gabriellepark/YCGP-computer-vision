@@ -35,12 +35,12 @@ Below, we describe the instruments used within each script.
 The iris normalization step takes in the output of the localization function, namely the position of the pupil within the image (center_x, center_y, radius),
 and the same information for the iris outer boundary. 
 
-With these centers and radii, the function “unwraps” the ring-shaped iris region into a fixed-size rectangular image, following the method in Ma et al. (Section 3.2.2, Eq. 2). 
+With these centers and radii, the function unwraps the iris region into a fixed-size rectangular image, following the method in Ma et al. (Section 3.2.2, Eq. 2). 
 Following the paper, we chose M (height from pupil boundary to iris boundary) × N (width for the unwrapped iris ring) = 64 × 512 as our ouput dimensions for the normalized iris. 
 
 These are all the parameters passed into the function. The steps within the function are as follows:
 
-First, we initialize the output image as an array of zeros with dimensions M × N. After that, we create variable assignments for each information within the pupil and iris info tuples.
+First, we create variable assignments for each information within the pupil and iris info tuples.
 We then compute values following the system of equations described in the paper, for each cell (X, Y). 
 For each cell, the column index X is converted to an angle θ = 2πX / N, so the 512 columns cover a full 360° around the iris. 
 In the direction of this angle, we calculate the x and y positions of the point on the pupil boundary and of the point on the iris outer boundary, each using its own center and radius. 
@@ -119,9 +119,16 @@ At this best dimension, it also plots the ROC curve and prints the FAR and FRR a
 
 ### Limitation(s) of the current design.
 
-How can you improve it?
+Current limitaation of the design include high False Rejection Rates, as seen below:
 
+ROC table:    Threshold  False Acceptance Rate  False Rejection Rate
+0      0.446               0.000006              0.532738
+1      0.472               0.000022              0.471230
+2      0.502               0.000049              0.414683
 
+The Rejection rate range from 41%-53% for the given thresholds, pointing the pipeline wrongly rejects valid matches almost
+half of the time. This could be due to slight changes in the eye position, eye area occlusion or noise not fully removed 
+by our filtering. 
 
 ### Peer evaluation form
 
