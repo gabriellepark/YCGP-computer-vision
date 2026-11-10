@@ -10,15 +10,15 @@ The data is split as follows: 108 eyes, 7 iris images per eye, which were captur
 (3 in the first session, 4 in the second session). All images are stored as BMP format with 320x280 pixel size. 
 
 To achieve our goal, the pipeline is split in 6 main scripts:
-    – IrisRecognition.m/py: the main function, which will use all the following sub functions:
-    – IrisLocalization.m/py: detecting pupil and outer boundary of iris. You can choose other iris
+    – IrisRecognition.py: the main function, which will use all the following sub functions:
+    – IrisLocalization.py: detecting pupil and outer boundary of iris. You can choose other iris
     localization methods if they work better;
-    – IrisNormalization.m/py: mapping the iris from Cartesian coordinates to polar coordinates;
-    – ImageEnhancement.m/py: enhancing the normalized iris;
-    – FeatureExtraction.m/py: filtering the iris and extracting features;
-    – IrisMatching.m/py: using Fisher linear discriminant for dimension reduction and nearest center
+    – IrisNormalization.py: mapping the iris from Cartesian coordinates to polar coordinates;
+    – ImageEnhancement.py: enhancing the normalized iris;
+    – FeatureExtraction.py: filtering the iris and extracting features;
+    – IrisMatching.py: using Fisher linear discriminant for dimension reduction and nearest center
     classifier for classification;
-    – PerformanceEvaluation.m/py: calculating the CRR for the identification mode (CRR for all three
+    – PerformanceEvaluation.py: calculating the CRR for the identification mode (CRR for all three
     measures, i.e., L1, L2, and Cosine similarity, should be >=80% , the higher the better), which will
     output Table 3 & Fig. 10 (refer to Ma’s paper); calculating ROC curve for verification mode, which
     will output Table 4 and Fig. 11 
@@ -28,7 +28,22 @@ To achieve our goal, the pipeline is split in 6 main scripts:
 Below, we describe the instruments used within each script.
 
     1. IrisLocalization
+The iris localization step takes the original image and attempts to locate the iris in order to be passed down to following steps.
 
+The main function is irisLocalization().
+The methodology is based on Ma et al.. We first blur the original image using a GaussianBlur function to account for occlusion from eyelashes and eyelids.
+Then, the image is projected into vertical and horizonal directions to approximate the center coordinates. The minima of each projection profile is selected as a rough center.
+
+The second step refines the center by selecting a region of interest centered around the point. Then it binarizes the region of interest by selecting a
+reasonable threshold using the gray-level histogram of the region. Otsu thresholding is used to automatically calculate the optimal threshold.
+Then, the largest dark blob is selected, to drop confounding regions. A pupil mask is applied over the largest region.
+The centroid of the binary region is used as an estimate of the pupil coordinates and then pupil radius is found from the region's area.
+
+The third step is to use Canny and Hough methods to calculate the exact parameters of the two circles using edge detection.
+A window around the center is selected. Then the region is blurred using medianBlur to remove noise from eyelashes and eyelids.
+HoughCircles is run and it runs Canny internally. This is used to find the pupil in the radius around the center. Then, for the iris, it selects
+the strongest circle candidate that has the highest votes from HoughCircles and is concentric with pupil.
+The function returns this pupil and iris.
 
     2. IrisNormalization
 
@@ -71,6 +86,17 @@ Finally, the result is passed to _equalizeImg, and the function returns the enha
 
     4. FeatureExtraction
 
+The feature extraction script aims to capture discriminating frequency information which reflects the
+local structure of the iris. Ma et al. tells us that majority of useful information of the iris is in a frequency band of about three
+octaves, so we aim to create a bank of filters to acquire this info. They break this down into two steps: spatial filters and feature vector.
+
+spatial_filter() gets new spatial filters to capture local details of the iris. The methodology is directly based on Ma et al.'s implementation
+in which kernels are given based on a 2D Gaussian envelope multiplied by a symmetric sinusoidal modulating function.
+
+extract_features() is a function to extract features from the image in the upper portion closer to the pupil. It applies both filters to the region of interest.
+
+To characterize local texture information of the iris, we extract statistical features in each 8 x 8 small block of the two filtered images and
+mean and the average absolute deviation are calculated for each.
 
 
     5. IrisMatching
